@@ -28,5 +28,6 @@
 ACR=
 USERNAME=""
 PASSWORD=""
+COMMAND="docker login $ACR.azure.cr -u $USERNAME -p $PASSWORD" 
 # Login to the Azure Container Registry using admin credentials
-docker login $ACR.azure.cr -u $USERNAME -p $PASSWORD
+docker compose exec compute_worker $COMMAND
