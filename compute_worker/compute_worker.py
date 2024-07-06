@@ -676,7 +676,8 @@ class Run:
             engine_cmd += ['-v', f'{self._get_host_path(self.input_dir)}:/app/input']
 
         # Set the image name (i.e. "codalab/codalab-legacy:py37") for the container
-        engine_cmd += [self.container_image]
+        # engine_cmd += [self.container_image]
+        engine_cmd += [self.container_image] # BB - Docker Submissions
 
         # Handle Legacy competitions by replacing anything in the run command
         command = replace_legacy_metadata_command(

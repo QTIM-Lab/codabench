@@ -25,9 +25,9 @@
 
 
 # From root of ./codabench
-ACR=
-USERNAME=""
-PASSWORD=""
-COMMAND="docker login $ACR.azure.cr -u $USERNAME -p $PASSWORD" 
+ACR=qtimchallenges
+USERNAME="qtimchallenges"
+PASSWORD="hNDnwoYzHYZL99M8jmycKrftdYoRoRTwK+k9Bb/nBO+ACRDxb0qM"
+COMMAND="docker login $ACR.azurecr.io -u $USERNAME -p $PASSWORD" 
 # Login to the Azure Container Registry using admin credentials
 docker compose exec compute_worker $COMMAND

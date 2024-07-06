@@ -33,6 +33,7 @@ class Data(ChaHubSaveMixin, models.Model):
     COMPETITION_BUNDLE = 'competition_bundle'
     SUBMISSION = 'submission'
     SOLUTION = 'solution'
+    DOCKER_IMAGE = 'docker_image' #  Not available as YAML value
 
     TYPES = (
         (INGESTION_PROGRAM, 'Ingestion Program',),
@@ -44,6 +45,7 @@ class Data(ChaHubSaveMixin, models.Model):
         (COMPETITION_BUNDLE, 'Competition Bundle',),
         (SUBMISSION, 'Submission',),
         (SOLUTION, 'Solution',),
+        (DOCKER_IMAGE, 'Docker_Image',), # BB - Docker Submissions
     )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_when = models.DateTimeField(default=now)

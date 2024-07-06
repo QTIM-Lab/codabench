@@ -11,6 +11,7 @@ application = ProtocolTypeRouter({
     "websocket": AuthMiddlewareStack(URLRouter([
         path("submission_input/<int:user_pk>/<int:submission_id>/<str:secret>/", consumers.SubmissionIOConsumer),
         path("submission_output/", consumers.SubmissionOutputConsumer),
+        path("docker_image/", consumers.DockerImageIOConsumer),
         # path(r".*", consumers.SubmissionOutputConsumer),
     ])),
 })

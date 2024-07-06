@@ -165,6 +165,7 @@ CODALAB.api = {
      * @param {function} progress_update_callback
      */
     create_dataset: function (metadata, data_file, progress_update_callback) {
+        debugger
         // Pass the requested file name for the SAS url
         metadata.request_sassy_file_name = data_file.name
         metadata.file_name = data_file.name

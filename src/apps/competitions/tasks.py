@@ -32,6 +32,10 @@ from datasets.models import Data
 from utils.data import make_url_sassy
 from utils.email import codalab_send_markdown_email
 
+from subprocess import Popen, call, check_output, CalledProcessError, PIPE # BB
+from channels.layers import get_channel_layer # BB
+from asgiref.sync import async_to_sync # BB
+
 logger = logging.getLogger()
 
 COMPETITION_FIELDS = [
@@ -235,7 +239,6 @@ def run_submission(submission_pk, tasks=None, is_scoring=False):
 
 
 def send_submission_message(submission, data):
-    from channels.layers import get_channel_layer
     channel_layer = get_channel_layer()
     user = submission.owner
     asyncio.get_event_loop().run_until_complete(channel_layer.group_send(f"submission_listening_{user.pk}", {
@@ -765,3 +768,73 @@ def submission_status_cleanup():
                 sub.parent.cancel(status=Submission.FAILED)
             else:
                 sub.cancel(status=Submission.FAILED)
+
+
+@app.task(queue='site-worker', soft_time_limit=60)
+def build_user_docker_image(user_id, dataset_id):
+    logger.info(f'build_user_docker_image')
+    channel_layer = get_channel_layer()
+    from celery.contrib import rdb
+    # Clean Docker Image Name to be compatible with container registry format
+    def docker_image_clean(image_name):
+        # Remove all excess whitespaces on edges, split on spaces and grab the first word.
+        # Wraps in double quotes so bash cannot interpret as an exec
+        image_name = '"{}"'.format(image_name.strip().split(' ')[0])
+        # Regex acts as a whitelist here. Only alphanumerics and the following symbols are allowed: / . : -.
+        # If any not allowed are found, replaced with second argument to sub.
+        image_name = re.sub('[^0-9a-zA-Z/.:-]+', '', image_name)
+        return image_name
+
+    def send_progress_message(message, status='progress'):
+        async_to_sync(channel_layer.group_send)(
+            f"docker_image_{dataset_id}",
+            {
+                'type': 'docker_image_message',
+                'dataset_id': dataset_id,
+                'message': {
+                    'status': status,
+                    'message': message
+                }
+            }
+        )
+
+    # Login
+    def login():
+        logger.info(f"login(): here bro...")
+        rdb.set_trace()
+        pass
+    # Unzip
+    def unzip():
+        logger.info(f"unzip(): here bro...")
+        rdb.set_trace()
+        pass
+    # Build
+    def build():
+        logger.info(f"build(): here bro...")
+        rdb.set_trace()
+        pass
+    # Push
+    def push():
+        logger.info(f"push(): here bro...")
+        rdb.set_trace()
+        pass
+    # Clean Up
+    def clean_up():
+        logger.info(f"clean_up(): here bro...")
+        rdb.set_trace()
+        pass
+
+    try:
+        send_progress_message("Starting Docker image build...")
+        # Perform the necessary build steps
+        # login()
+        # unzip()
+        # build()
+        # push()
+        # clean_up()
+        send_progress_message("Docker image build completed successfully.", status='success')
+    except Exception as e:
+        logger.error(f"Error building Docker image: {str(e)}")
+        send_progress_message(f"Error: {str(e)}", status='failure')
+        rdb.set_trace()
+
