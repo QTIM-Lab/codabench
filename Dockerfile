@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED 1
 
 ADD requirements.dev.txt .
 ADD requirements.txt .
-RUN pip install -U pip
+RUN pip install --upgrade "pip<24.1"
 RUN pip install -r requirements.dev.txt
 
 WORKDIR /app

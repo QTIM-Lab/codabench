@@ -771,7 +771,7 @@ def submission_status_cleanup():
 
 
 @app.task(queue='site-worker', soft_time_limit=60)
-def build_user_docker_image(user_id, dataset_id):
+def build_user_docker_image(dataset_id):
     logger.info(f'build_user_docker_image')
     channel_layer = get_channel_layer()
     from celery.contrib import rdb
@@ -786,6 +786,7 @@ def build_user_docker_image(user_id, dataset_id):
         return image_name
 
     def send_progress_message(message, status='progress'):
+        # rdb.set_trace()
         async_to_sync(channel_layer.group_send)(
             f"docker_image_{dataset_id}",
             {
@@ -832,9 +833,9 @@ def build_user_docker_image(user_id, dataset_id):
         # build()
         # push()
         # clean_up()
-        send_progress_message("Docker image build completed successfully.", status='success')
+        # send_progress_message("Docker image build completed successfully.", status='success')
     except Exception as e:
+        rdb.set_trace()
         logger.error(f"Error building Docker image: {str(e)}")
         send_progress_message(f"Error: {str(e)}", status='failure')
-        rdb.set_trace()
 
