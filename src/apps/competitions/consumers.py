@@ -101,45 +101,30 @@ class SubmissionOutputConsumer(AsyncWebsocketConsumer):
 
 class DockerImageIOConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
         if not self.scope["user"].is_authenticated:
             return await self.close()
         await self.accept()
-        await self.channel_layer.group_add(f"docker_image_11", self.channel_name)
+        print(f"CONSUMER CONNECT")
+        self.user_pk = self.scope["user"].pk
+        print(self.user_pk)
+        await self.channel_layer.group_add(f"docker_image_for_user_{self.user_pk}", self.channel_name)
 
-    # async def disconnect(self, close_code):
-    #     import pdb; pdb.set_trace()
-    #     await self.channel_layer.group_discard(f"docker_image_{self.dataset_id}", self.channel_name)
-    #     await self.close()
+    async def disconnect(self, close_code):
+        print(f"CONSUMER DISCONNECT")
+        await self.channel_layer.group_discard(f"docker_image_for_user_{self.user_pk}", self.channel_name)
+        await self.close()
 
     async def receive(self, text_data=None, bytes_data=None):
-        # pdb.set_trace()
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
-        logger.debug("\n\n\n\n\n\nasdfasdf")
+        print(f"CONSUMER RECEIVE")
         data = json.loads(text_data)
-        logger.debug(f"Received data: {data}")
-
-        await self.channel_layer.group_add(f"docker_image_11", self.channel_name)
-        # Example processing logic
-        if 'dataset_id' in data:
-            dataset_id = data['dataset_id']
-            ############################ FIX ##################################################
-            await self.channel_layer.group_add(f"docker_image_11", self.channel_name)
-            # Process your data or handle as needed
+        print(f"Received data: {data}")
+        # logger.debug(f"user pk: {self.scope["user"].pk}")
+        user_pk = self.scope["user"].pk
+ 
 
     async def docker_image_message(self, event):
+        print(f"CONSUMER DOCKER IMAGE MESSAGE")
         # pdb.set_trace()
-        RemotePdb('0.0.0.0', 4444).set_trace()
         data = {
             "type": "docker_build_progress",
             "message": event['message']

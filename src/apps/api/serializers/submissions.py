@@ -150,7 +150,8 @@ class SubmissionCreationSerializer(DefaultUserCreateMixin, serializers.ModelSeri
             'organization',
             'queue',
             'created_when',
-            'scores'
+            'scores',
+            'docker_image'
         )
         extra_kwargs = {
             'secret': {"write_only": True},
@@ -163,7 +164,11 @@ class SubmissionCreationSerializer(DefaultUserCreateMixin, serializers.ModelSeri
 
     def create(self, validated_data):
         tasks = validated_data.pop('tasks', None)
+
+        # submission_docker_image = validated_data.pop('submission_docker_image', None)
         sub = super().create(validated_data)
+        # sub.submission_docker_image = submission_docker_image
+        # sub.save()
 
         # Check if auto_run_submissions is enabled then run the submission
         # Otherwise organizer will run manually

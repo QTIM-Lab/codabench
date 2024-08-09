@@ -75,9 +75,8 @@
                    </span>
                    </label>
                    <select name="docker_images" id="docker_images_dropdown" class="ui dropdown">
-                       <option value="None">Yourself</option>
+                       <!--  <option value="add_docker_image">+ Add New Docker Image</option>  -->
                        <option each="{docker_image in docker_images}" value="{docker_image.id}">{docker_image.name}</option>
-                       <option value="add_docker_image">+ Add New Docker Image</option>
                    </select>
                 </div>
                 <input-file name="docker_image_data_file" ref="docker_image_data_file" error="{errors.docker_image_data_file}" accept=".zip" style="display: none;"></input-file>
@@ -184,7 +183,22 @@
         self.children_statuses = {}
         self.datasets = {}
         self.organizations = []
-        self.docker_images = [{'id': 'qtimchallenges.azurecr.io/codalab-legacy:py37', 'name': 'codalab-legacy:py37'}]
+        self.docker_images = [{'id': 'codalab-legacy:py37', 'name': 'codalab-legacy:py37'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
+        var get_user_docker_images = function (){
+            CODALAB.api.get_user_docker_images()
+                .done((data) => {
+                    self.docker_images = [{'id': 'codalab-legacy:py37', 'name': 'codalab-legacy:py37'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
+                    for (let i=0; i<data['built_docker_image_file_names'].length ; i++){
+                        tag_name = data['built_docker_image_file_names'][i]
+                        self.docker_images.push({'id': `user_${data['user_pk']}:${tag_name}`, 'name': `${tag_name}`})
+                    }
+                    self.organizations = data
+                    if (self.organizations.length === 0){
+                        $('#organization_dropdown').hide()
+                    }
+                    self.update()
+                })
+        }
         self.one('mount', function () {
             CODALAB.api.get_user_participant_organizations()
                 .done((data) => {
@@ -194,6 +208,7 @@
                     }
                     self.update()
                 })
+            get_user_docker_images() // BB
             $('.dropdown', self.root).dropdown()
             let segment = $('.submission-output-container .ui.basic.segment')
             $('.ui.accordion', self.root).accordion({
@@ -371,6 +386,7 @@
             self.docker_ws.addEventListener("open", function(event) {
                 console.log("Docker image WebSocket connected.");
                 // Send any initial message if needed
+                
             });
 
             self.docker_ws.addEventListener("close", function(event) {
@@ -385,9 +401,16 @@
         }
 
         self.handle_docker_image_websocket = function (message) {
-            debugger
+            
             if (message.status === 'success') {
                 toastr.success(message.message);
+                get_user_docker_images() //BB
+                self.docker_ws.send(JSON.stringify({
+                    some_key: 'receive ???'
+                }))
+            } else if (message.status === 'progress') {
+                get_user_docker_images() //BB
+                toastr.warning(message.message);
             } else if (message.status === 'failure') {
                 toastr.error(message.message);
             } else {
@@ -484,7 +507,7 @@
             let form_array = $(self.refs.form).serializeArray()
             let form_json = {}
             for (answer of form_array) {
-                if(!answer['name'].startsWith('task-')){
+                if(!answer['name'].startsWith('task-') & !answer['name'].startsWith('docker_images')){
                     if(answer['value'] === 'true'){
                         form_json[answer['name']] = true
                     }
@@ -501,21 +524,18 @@
 
         // BB
         self.upload_docker_image_archive = function () {
-            debugger
             self.display_output = true
             var data_file_metadata = {
                 type: 'docker_image',
                 competition: self.opts.competition.id
                 // user: user
             }
-            debugger
             var data_file = self.refs.docker_image_data_file.refs.file_input.files[0]
             self.children = []
             self.children_statuses = {}
             CODALAB.api.create_dataset(data_file_metadata, data_file, self.file_upload_progress_handler)
                 // BB We can use a copy of this for docker image bundle uploads
                 .done(function (data) {
-                    debugger
                     // self.lines = {}
                     // let dropdown = $('#docker_images_dropdown')
                     // let organization = dropdown.dropdown('get value')
@@ -525,30 +545,28 @@
                     // dropdown.attr('disabled', 'disabled')
                     // // Call start_submission with dataset key
                     // // start_submission returns submission key
-                    // CODALAB.api.create_submission({
-                    //     "data": data.key,
-                    //     "phase": self.selected_phase.id,
-                    //     "fact_sheet_answers": self.get_fact_sheet_answers(),
-                    //     "tasks": task_ids_to_run,
-                    //     "organization": organization,
-                    //     "queue": self.opts.competition.queue ? self.opts.competition.queue.id : null
-                    // })
-                    //     .done(function (data) {
-                    //         CODALAB.events.trigger('new_submission_created', data)
-                    //         CODALAB.events.trigger('submission_selected', data)
-                    //         $('#organization_dropdown').removeAttr('disabled')
-                    //     })
-                    //     .fail(function (response) {
-                    //         try {
-                    //             let errors = JSON.parse(response.responseText)
-                    //             let error_str = Object.keys( errors ).map(function (key) { return errors[key] }).join("; ")
-                    //             toastr.error("Submission Failed: ".concat(error_str))
-                    //         } catch (e) {
-                    //             toastr.error("Submission Failed")
-                    //         }
-                    //     })
+                    CODALAB.api.build_docker_image({
+                        "data": data.key
+                    })
+                        .done(function (data) {
+                            
+                            // CODALAB.events.trigger('new_submission_created', data)
+                            // CODALAB.events.trigger('submission_selected', data)
+                            // $('#organization_dropdown').removeAttr('disabled')
+                        })
+                        .fail(function (response) {
+                            
+                            // try {
+                            //     let errors = JSON.parse(response.responseText)
+                            //     let error_str = Object.keys( errors ).map(function (key) { return errors[key] }).join("; ")
+                            //     toastr.error("Submission Failed: ".concat(error_str))
+                            // } catch (e) {
+                            //     toastr.error("Submission Failed")
+                            // }
+                        })
                 })
                 .fail(function (response) {
+                    
                     if (response) {
                         try {
                             let errors = JSON.parse(response.responseText);
@@ -558,6 +576,8 @@
                             })
                             self.update({errors: errors})
                         } catch (e) {
+                            console.log(e)
+                            
                         }
                     }
                     toastr.error(`Creation failed, error occurred: ${response.responseJSON.data_file[0]}`)
@@ -604,11 +624,21 @@
 
                     // Call start_submission with dataset key
                     // start_submission returns submission key
+                    
+                    // Get the dropdowns above submission to find dropdown data
+                    let form_array = $(self.refs.form).serializeArray()
+                    var submission_docker_image = null
+                    for (answer of form_array) {
+                        if(!answer['name'].startsWith('task-') && answer['name'].startsWith('docker_images')){
+                            submission_docker_image = answer['value']
+                        }
+                    }    
                     CODALAB.api.create_submission({
                         "data": data.key,
                         "phase": self.selected_phase.id,
                         "fact_sheet_answers": self.get_fact_sheet_answers(),
                         "tasks": task_ids_to_run,
+                        "docker_image": submission_docker_image,
                         "organization": organization,
                         "queue": self.opts.competition.queue ? self.opts.competition.queue.id : null
                     })

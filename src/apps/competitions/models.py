@@ -508,7 +508,7 @@ class Submission(ChaHubSaveMixin, models.Model):
     appear_on_leaderboards = models.BooleanField(default=False)
     data = models.ForeignKey("datasets.Data", on_delete=models.CASCADE, related_name='submission')
     md5 = models.CharField(max_length=32, null=True, blank=True)
-
+    docker_image = models.CharField(max_length=128, default="codalab/codalab-legacy:py37")
     prediction_result = models.FileField(upload_to=PathWrapper('prediction_result'), null=True, blank=True,
                                          storage=BundleStorage)
     scoring_result = models.FileField(upload_to=PathWrapper('scoring_result'), null=True, blank=True,
@@ -599,7 +599,6 @@ class Submission(ChaHubSaveMixin, models.Model):
                     logger.warning(f"The {file_path_attr} of Submission id={self.id} does not exist in the storage. {file_path_attr} and {file_size_attr} has been cleared")
                     setattr(self, file_size_attr, Decimal(0))
                     setattr(self, file_path_attr, None)
-
         super().save(**kwargs)
 
     def start(self, tasks=None):
