@@ -1,4 +1,5 @@
-import json
+import json, pdb
+from remote_pdb import RemotePdb
 import logging
 
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -11,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class SubmissionIOConsumer(AsyncWebsocketConsumer):
-    #
     async def connect(self):
         submission_id = self.scope['url_route']['kwargs']['submission_id']
         secret = self.scope['url_route']['kwargs']['secret']
@@ -94,5 +94,39 @@ class SubmissionOutputConsumer(AsyncWebsocketConsumer):
             "type": "catchup" if event.get('full_text') else "message",
             "submission_id": event['submission_id'],
             "data": event['text']
+        }
+        await self.send(json.dumps(data))
+
+
+
+class DockerImageIOConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        if not self.scope["user"].is_authenticated:
+            return await self.close()
+        await self.accept()
+        print(f"CONSUMER CONNECT")
+        self.user_pk = self.scope["user"].pk
+        print(self.user_pk)
+        await self.channel_layer.group_add(f"docker_image_for_user_{self.user_pk}", self.channel_name)
+
+    async def disconnect(self, close_code):
+        print(f"CONSUMER DISCONNECT")
+        await self.channel_layer.group_discard(f"docker_image_for_user_{self.user_pk}", self.channel_name)
+        await self.close()
+
+    async def receive(self, text_data=None, bytes_data=None):
+        print(f"CONSUMER RECEIVE")
+        data = json.loads(text_data)
+        print(f"Received data: {data}")
+        # logger.debug(f"user pk: {self.scope["user"].pk}")
+        user_pk = self.scope["user"].pk
+ 
+
+    async def docker_image_message(self, event):
+        print(f"CONSUMER DOCKER IMAGE MESSAGE")
+        # pdb.set_trace()
+        data = {
+            "type": "docker_build_progress",
+            "message": event['message']
         }
         await self.send(json.dumps(data))

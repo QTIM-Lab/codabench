@@ -210,6 +210,13 @@ CODALAB.api = {
                 return CODALAB.api.request('PUT', URLS.API + "datasets/completed/" + dataset.key + "/")
             })
     },
+    build_docker_image: function (submission_metadata) {
+        // return CODALAB.api.request('POST', URLS.API + `datasets/${submission_metadata.data}/build_docker_image/`, submission_metadata)
+        return CODALAB.api.request('POST', URLS.API + `datasets/build_docker_image/`, submission_metadata)
+    },
+    get_user_docker_images: function () {
+        return CODALAB.api.request('GET', URLS.API + `datasets/get_user_docker_images/`)
+    },
 
     /*---------------------------------------------------------------------
          Tasks

@@ -65,6 +65,22 @@
                     </select> 
                     
                 </div>
+                <!--  BB - Docker Submissions  -->
+                <div class="ui six wide field">
+                   <label>Use Docker Image:
+                   <span class="ui mini circular icon button"
+                       data-tooltip="You can either submit in default competition image"
+                       data-position="top center">
+                       <i class="question icon"></i>
+                   </span>
+                   </label>
+                   <select name="docker_images" id="docker_images_dropdown" class="ui dropdown">
+                       <!--  <option value="add_docker_image">+ Add New Docker Image</option>  -->
+                       <option each="{docker_image in docker_images}" value="{docker_image.id}">{docker_image.name}</option>
+                   </select>
+                </div>
+                <input-file name="docker_image_data_file" ref="docker_image_data_file" error="{errors.docker_image_data_file}" accept=".zip" style="display: none;"></input-file>
+                <!--  BB - Docker Submissions  -->
 
                 <input-file name="data_file" ref="data_file" error="{errors.data_file}" accept=".zip"></input-file>
             </form>
@@ -167,7 +183,22 @@
         self.children_statuses = {}
         self.datasets = {}
         self.organizations = []
-
+        self.docker_images = [{'id': 'codalab-legacy:py37', 'name': 'codalab-legacy:py37'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
+        var get_user_docker_images = function (){
+            CODALAB.api.get_user_docker_images()
+                .done((data) => {
+                    self.docker_images = [{'id': 'codalab-legacy:py37', 'name': 'codalab-legacy:py37'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
+                    for (let i=0; i<data['built_docker_image_file_names'].length ; i++){
+                        tag_name = data['built_docker_image_file_names'][i]
+                        self.docker_images.push({'id': `user_${data['user_pk']}:${tag_name}`, 'name': `${tag_name}`})
+                    }
+                    self.organizations = data
+                    if (self.organizations.length === 0){
+                        $('#organization_dropdown').hide()
+                    }
+                    self.update()
+                })
+        }
         self.one('mount', function () {
             CODALAB.api.get_user_participant_organizations()
                 .done((data) => {
@@ -177,6 +208,7 @@
                     }
                     self.update()
                 })
+            get_user_docker_images() // BB
             $('.dropdown', self.root).dropdown()
             let segment = $('.submission-output-container .ui.basic.segment')
             $('.ui.accordion', self.root).accordion({
@@ -186,8 +218,11 @@
 
             // File upload handler
             $(self.refs.data_file.refs.file_input).on('change', self.check_can_upload)
+            // File upload handler for docker image upload
+            $(self.refs.docker_image_data_file.refs.file_input).on('change', self.upload_docker_image_archive)
             self.setup_autoscroll()
-            self.setup_websocket()
+            self.setup_submission_websocket()
+            self.setup_docker_image_websocket()
         }) 
         
         // Function to capture change of `submit as` dropdown
@@ -197,6 +232,19 @@
             if(selected_option_value == 'add_organization'){
                 // Open Add organization in new tab
                 window.open('/profiles/organization/create/', '_blank')
+            }
+        })
+
+        // Upload Docker Image
+        $(document).on('change','#docker_images_dropdown',function(){
+            let selected_option_value = $('#docker_images_dropdown option:selected').val();
+            if(selected_option_value == 'add_docker_image'){
+                toastr.success('Adding Docker Image')
+                // Open Add organization in new tab
+                $(self.refs.docker_image_data_file.refs.file_input).click()
+                // self.upload_docker_image_archive()
+            }else{
+                toastr.success(`Selected Docker Image ${selected_option_value}`)
             }
         })
 
@@ -224,7 +272,7 @@
             })
 
         }
-        self.setup_websocket = function () {
+        self.setup_submission_websocket = function () {
             // Submission stream handler
             var url = new URL('/submission_output/', window.location.href);
             url.protocol = url.protocol.replace('http', 'ws');
@@ -243,14 +291,14 @@
                             if (data.kind === 'detailed_result_update') {
                                 detailed_result_url = data.result_url
                             } else {
-                                self.handle_websocket(event_data.submission_id, data)
+                                self.handle_submission_websocket(event_data.submission_id, data)
                             }
                         })
                         self.detailed_result_urls[submission_id] = detailed_result_url
                         self.update()
                         break
                     case 'message':
-                        self.handle_websocket(event_data.submission_id, event_data.data)
+                        self.handle_submission_websocket(event_data.submission_id, event_data.data)
                         break
                 }
             })
@@ -262,7 +310,7 @@
             self.ws.open()
         }
 
-        self.handle_websocket = function (submission_id, data) {
+        self.handle_submission_websocket = function (submission_id, data) {
             submission_id = _.toNumber(submission_id)
             if (self.selected_submission.id !== submission_id && !_.includes(self.children, submission_id)) {
                 // not a submission we care about
@@ -310,6 +358,63 @@
                 self.ws.send(JSON.stringify({
                     submission_ids: _.concat(self.selected_submission.id, _.get(self.selected_submission, 'children', []))
                 }))
+            }
+        }
+
+        // Docker image web socket - BB
+        self.setup_docker_image_websocket = function () {
+            // Docker image stream handler
+            var url = new URL(`/docker_image/`, window.location.href);
+            url.protocol = url.protocol.replace('http', 'ws');
+            var options = {
+                automaticOpen: false
+            }
+            self.docker_ws = new ReconnectingWebSocket(url, null, options);
+            
+            self.docker_ws.addEventListener("message", function (event) {
+                let event_data = JSON.parse(event.data);
+                let dataset_id = event_data.dataset_id;  // Retrieve dataset_id from event data
+                switch (event_data.type) {
+                    case 'docker_build_progress':
+                        self.handle_docker_image_websocket(event_data.message);
+                        break;
+                    default:
+                        console.log("Unknown event type:", event_data.type);
+                }
+            });
+
+            self.docker_ws.addEventListener("open", function(event) {
+                console.log("Docker image WebSocket connected.");
+                // Send any initial message if needed
+                
+            });
+
+            self.docker_ws.addEventListener("close", function(event) {
+                console.log("Docker image WebSocket closed.");
+            });
+
+            self.docker_ws.addEventListener("error", function(error) {
+                console.error("Docker image WebSocket error:", error);
+            });
+
+            self.docker_ws.open();
+        }
+
+        self.handle_docker_image_websocket = function (message) {
+            
+            if (message.status === 'success') {
+                toastr.success(message.message);
+                get_user_docker_images() //BB
+                self.docker_ws.send(JSON.stringify({
+                    some_key: 'receive ???'
+                }))
+            } else if (message.status === 'progress') {
+                get_user_docker_images() //BB
+                toastr.warning(message.message);
+            } else if (message.status === 'failure') {
+                toastr.error(message.message);
+            } else {
+                console.log("Unknown status:", message.status);
             }
         }
 
@@ -402,7 +507,7 @@
             let form_array = $(self.refs.form).serializeArray()
             let form_json = {}
             for (answer of form_array) {
-                if(!answer['name'].startsWith('task-')){
+                if(!answer['name'].startsWith('task-') & !answer['name'].startsWith('docker_images')){
                     if(answer['value'] === 'true'){
                         form_json[answer['name']] = true
                     }
@@ -415,6 +520,74 @@
             }
             return form_json === {} ? null : form_json
         }
+
+
+        // BB
+        self.upload_docker_image_archive = function () {
+            self.display_output = true
+            var data_file_metadata = {
+                type: 'docker_image',
+                competition: self.opts.competition.id
+                // user: user
+            }
+            var data_file = self.refs.docker_image_data_file.refs.file_input.files[0]
+            self.children = []
+            self.children_statuses = {}
+            CODALAB.api.create_dataset(data_file_metadata, data_file, self.file_upload_progress_handler)
+                // BB We can use a copy of this for docker image bundle uploads
+                .done(function (data) {
+                    // self.lines = {}
+                    // let dropdown = $('#docker_images_dropdown')
+                    // let organization = dropdown.dropdown('get value')
+                    // if(organization === 'add_organization' | organization === 'None'){
+                    //     organization = null
+                    // }
+                    // dropdown.attr('disabled', 'disabled')
+                    // // Call start_submission with dataset key
+                    // // start_submission returns submission key
+                    CODALAB.api.build_docker_image({
+                        "data": data.key
+                    })
+                        .done(function (data) {
+                            
+                            // CODALAB.events.trigger('new_submission_created', data)
+                            // CODALAB.events.trigger('submission_selected', data)
+                            // $('#organization_dropdown').removeAttr('disabled')
+                        })
+                        .fail(function (response) {
+                            
+                            // try {
+                            //     let errors = JSON.parse(response.responseText)
+                            //     let error_str = Object.keys( errors ).map(function (key) { return errors[key] }).join("; ")
+                            //     toastr.error("Submission Failed: ".concat(error_str))
+                            // } catch (e) {
+                            //     toastr.error("Submission Failed")
+                            // }
+                        })
+                })
+                .fail(function (response) {
+                    
+                    if (response) {
+                        try {
+                            let errors = JSON.parse(response.responseText);
+                            // Clean up errors to not be arrays but plain text
+                            Object.keys(errors).map(function (key, index) {
+                                errors[key] = errors[key].join('; ')
+                            })
+                            self.update({errors: errors})
+                        } catch (e) {
+                            console.log(e)
+                            
+                        }
+                    }
+                    toastr.error(`Creation failed, error occurred: ${response.responseJSON.data_file[0]}`)
+                })
+                .always(function () {
+                    setTimeout(self.hide_progress_bar, 500)
+                    self.clear_form()
+                })
+        }
+        // BB
 
         self.upload = function () {
             self.display_output = true
@@ -438,6 +611,7 @@
             self.children = []
             self.children_statuses = {}
             CODALAB.api.create_dataset(data_file_metadata, data_file, self.file_upload_progress_handler)
+                // # BB We can use a copy of this for docker image bundle uploads
                 .done(function (data) {
                     self.lines = {}
                     let dropdown = $('#organization_dropdown')
@@ -450,11 +624,21 @@
 
                     // Call start_submission with dataset key
                     // start_submission returns submission key
+                    
+                    // Get the dropdowns above submission to find dropdown data
+                    let form_array = $(self.refs.form).serializeArray()
+                    var submission_docker_image = null
+                    for (answer of form_array) {
+                        if(!answer['name'].startsWith('task-') && answer['name'].startsWith('docker_images')){
+                            submission_docker_image = answer['value']
+                        }
+                    }    
                     CODALAB.api.create_submission({
                         "data": data.key,
                         "phase": self.selected_phase.id,
                         "fact_sheet_answers": self.get_fact_sheet_answers(),
                         "tasks": task_ids_to_run,
+                        "docker_image": submission_docker_image,
                         "organization": organization,
                         "queue": self.opts.competition.queue ? self.opts.competition.queue.id : null
                     })

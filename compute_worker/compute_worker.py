@@ -32,6 +32,7 @@ logger = logging.getLogger()
 # -----------------------------------------------
 # Celery + Rabbit MQ
 # -----------------------------------------------
+from celery.contrib import rdb # BB
 # Init celery + rabbit queue definitions
 app = Celery()
 app.config_from_object('celery_config')  # grabs celery_config.py
@@ -223,6 +224,7 @@ class Run:
         self.submission_id = run_args["id"]
         self.submissions_api_url = run_args["submissions_api_url"]
         self.container_image = run_args["docker_image"]
+        self.submission_container_image = run_args["submission_docker_image"]
         self.secret = run_args["secret"]
         self.prediction_result = run_args["prediction_result"]
         self.scoring_result = run_args.get("scoring_result")
@@ -677,8 +679,12 @@ class Run:
             engine_cmd += ['-v', f'{self._get_host_path(self.input_dir)}:/app/input']
 
         # Set the image name (i.e. "codalab/codalab-legacy:py37") for the container
-        engine_cmd += [self.container_image]
-
+        # engine_cmd += [self.container_image]
+        if kind == 'ingestion':
+            engine_cmd += [f"qtimchallenges.azurecr.io/{self.submission_container_image}"] # BB - Docker Submissions
+        if self.is_scoring:
+            engine_cmd += [self.container_image] # BB - Docker Submissions
+        # rdb.set_trace()
         # Handle Legacy competitions by replacing anything in the run command
         command = replace_legacy_metadata_command(
             command=command,

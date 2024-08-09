@@ -191,6 +191,14 @@ services:
     # This auto-reloads
     command: bash -c "watchmedo auto-restart -p '*.py' --recursive -- celery -A celery_config worker -B -Q site-worker -l info -n site-worker@%n --concurrency=2"
     working_dir: /app/src
+    # stdin_open: true
+    # tty: true
+    # ports:
+    #   - 6900-6950:6900-6950
+    # environment:
+    #   - CELERY_RDB_HOST=0.0.0.0
+    #   - PYTHONUNBUFFERED=1
+    #   - COLUMNS=80  # Add this line
     build:
       context: .
     depends_on:
@@ -199,6 +207,8 @@ services:
     env_file: .env
     volumes:
       - .:/app
+      # Actual connection back to docker parent to run things
+      # - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     logging:
       options:
@@ -214,6 +224,10 @@ services:
   compute_worker:
     command: bash -c "watchmedo auto-restart -p '*.py' --recursive -- celery -A compute_worker worker -l info -Q compute-worker -n compute-worker@%n"
     working_dir: /app
+    # stdin_open: true
+    # tty: true
+    # ports:
+    #   - 6900-7000:6900-7000
     build:
       context: .
       dockerfile: Dockerfile.compute_worker
@@ -230,6 +244,9 @@ services:
       - BROKER_URL=pyamqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}//
       # Make the worker leave behind the submission so we can examine it
       - CODALAB_IGNORE_CLEANUP_STEP=1
+      # - CELERY_RDB_HOST=0.0.0.0
+      # - PYTHONUNBUFFERED=1
+      # - COLUMNS=80  # Add this line
     logging:
       options:
         max-size: "20m"

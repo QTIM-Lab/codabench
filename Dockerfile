@@ -2,6 +2,9 @@ FROM python:3.9
 
 RUN apt-get update && apt-get install -y gcc build-essential && rm -rf /var/lib/apt/lists/*
 
+# Install Docker
+RUN apt-get update && curl -fsSL https://get.docker.com | sh
+
 ENV PYTHONUNBUFFERED 1
 
 

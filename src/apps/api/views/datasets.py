@@ -1,4 +1,4 @@
-import os
+import os, pdb, re
 
 from django.core.files.base import ContentFile
 from django.db.models import Q
@@ -14,6 +14,7 @@ from api.pagination import BasicPagination
 from api.serializers import datasets as serializers
 from datasets.models import Data, DataGroup
 from competitions.models import CompetitionCreationTaskStatus
+from competitions.tasks import build_user_docker_image
 from utils.data import make_url_sassy, pretty_bytes
 
 
@@ -151,6 +152,46 @@ class DataViewSet(ModelViewSet):
             sub = dataset.submission.first()
             if sub.phase:
                 return 'Cannot delete submission: submission belongs to an existing competition'
+
+    @action(detail=False, methods=('POST',))
+    def build_docker_image(self, request):
+        data_minio_key = request.data.get('data')
+        docker_archive = Data.objects.filter(key=data_minio_key)[0]
+        # pdb.set_trace()
+        build_user_docker_image.apply_async(args=(docker_archive.pk,request.user.id))
+        return Response(
+            {'detail': 'Docker image building'},
+            status.HTTP_200_OK
+        )
+    
+    @action(detail=False, methods=('GET',))
+    def get_user_docker_images(self, request):
+        # Clean Docker Image Name to be compatible with container registry format
+        def docker_tag_clean(file_name):
+            # Get file name sans extension
+            file_name = os.path.basename(file_name).split(".zip")[0]
+            # Remove all excess whitespaces on edges, split on spaces and grab the first word.
+            # Wraps in double quotes so bash cannot interpret as an exec
+            file_name = '"{}"'.format(file_name.strip().split(' ')[0])
+            # Regex acts as a whitelist here. Only alphanumerics and the following symbols are allowed: / . : -.
+            # If any not allowed are found, replaced with second argument to sub.
+            file_name = re.sub('[^0-9a-zA-Z/.:-]+', '', file_name)
+
+            return file_name
+        try:
+            built_docker_images = Data.objects.filter(type="docker_image", created_by_id=request.user.id)
+            built_docker_image_file_names = [docker_tag_clean(obj.file_name) for obj in built_docker_images]
+            return Response(
+                {'detail': 'Retrieved docker images for user.',
+                 'built_docker_image_file_names':built_docker_image_file_names,
+                 'user_pk': request.user.id},
+                status.HTTP_200_OK
+            )
+        except:
+            return Response(
+                {'detail': 'Failed to retrieve any docker image archives.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class DataGroupViewSet(ModelViewSet):
