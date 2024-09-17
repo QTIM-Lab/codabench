@@ -42,6 +42,9 @@ class Thread(models.Model):
 
         if created:
             if self.forum.competition.created_by.organizer_direct_message_updates:
+                admins = self.forum.competition.collaborators.all()
+                for admin in admins:
+                    self.notify_user(admin)
                 self.notify_user(self.forum.competition.created_by)
 
     def get_absolute_url(self):

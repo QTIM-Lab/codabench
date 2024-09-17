@@ -36,7 +36,7 @@ from subprocess import Popen, check_output, CalledProcessError, PIPE, STDOUT # B
 from channels.layers import get_channel_layer # BB
 from asgiref.sync import async_to_sync # BB
 from celery.contrib import rdb # BB
-from time import sleep # BB
+import time
 
 logger = logging.getLogger()
 
@@ -821,43 +821,86 @@ def build_user_docker_image(dataset_id, user_id):
     
     # Build
     def build(dir="."):
-        send_progress_message(f"building image user_{docker_archive.created_by.id}:{docker_tag}", status="success")
-        # rdb.set_trace()
+        send_progress_message(f"building image user_{docker_archive.created_by.id}:{docker_tag}", status="progress")
         try:
-            # Run the command and capture both stdout and stderr
-            # rdb.set_trace()
             command = f'docker build -t qtimchallenges.azurecr.io/user_{docker_archive.created_by.id}:{docker_tag} {dir}'
-            output = check_output(command.split(" "), stderr=STDOUT, universal_newlines=True)
+            process = Popen(command.split(" "), stdout=PIPE, stderr=STDOUT, universal_newlines=True)
+            
+            # Send progress every 10 seconds
+            last_progress_time = time.time()
+
+            start_time = time.time()
+            output_list = ""
+            while True:
+                time.sleep(0.1)
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                output_list += f"{output}\n"
+                current_time = time.time()
+                if current_time - last_progress_time >= 5:
+                    send_progress_message(f"Still building image user_{docker_archive.created_by.id}:{docker_tag}", status="progress")
+                    send_progress_message(f"Some build logs: \n\n {output_list}\n", status="progress")
+                    send_progress_message(f"Has been {current_time - start_time} seconds.", status="progress")
+                    last_progress_time = current_time
+                    
+
+            return_code = process.poll()
             # rdb.set_trace()
-            # Clean out older uploads with the same name so that only one with a specific name can exists in postgres
-            built_docker_images = Data.objects.filter(type="docker_image", created_by_id=user_id, file_name=docker_archive.file_name)
+            if return_code == 0:
+                built_docker_images = Data.objects.filter(type="docker_image", created_by_id=user_id, file_name=docker_archive.file_name)
+                for docker_image_archive in built_docker_images:
+                    if docker_image_archive.id < docker_archive.id:
+                        # rdb.set_trace()
+                        docker_image_archive.delete()
+                send_progress_message(f"finished building image: {docker_archive.created_by.id}:{docker_tag}", status="success")
+            else:
+                send_progress_message(f"failed to building image: {docker_archive.created_by.id}:{docker_tag}", status="success")
+                send_progress_message(f"final logs for attempt at building image:\n\n{output_list}", status="failure")
+                raise CalledProcessError(return_code, command)
 
-            for docker_image_archive in built_docker_images:
-                if docker_image_archive.id < docker_archive.id:
-                    # rdb.set_trace()
-                    docker_image_archive.delete()
-
-            send_progress_message(f"finished building image : {docker_archive.created_by.id}:{docker_tag}", status="success")
         except CalledProcessError as e:
+            # rdb.set_trace()
             remove_dataset_from_minio_and_database()
-            send_progress_message(f"build of image {docker_archive.created_by.id}:{docker_tag} failed \n Removing uploaded docker archive", status="failure")
-            # Handle the case where the command fails
-            # print('Command failed with return code:', e.returncode)
-            # print('Command output:', e.output.decode())
+            raise Exception(f"build of image {docker_archive.created_by.id}:{docker_tag} failed \n Removing uploaded docker archive")
+    
+    # def build(dir="."):
+    #     send_progress_message(f"building image user_{docker_archive.created_by.id}:{docker_tag}", status="success")
+    #     # rdb.set_trace()
+    #     try:
+    #         # Run the command and capture both stdout and stderr
+    #         # rdb.set_trace()
+    #         command = f'docker build -t qtimchallenges.azurecr.io/user_{docker_archive.created_by.id}:{docker_tag} {dir}'
+    #         output = check_output(command.split(" "), stderr=STDOUT, universal_newlines=True)
+    #         # rdb.set_trace()
+    #         # Clean out older uploads with the same name so that only one with a specific name can exists in postgres
+    #         built_docker_images = Data.objects.filter(type="docker_image", created_by_id=user_id, file_name=docker_archive.file_name)
+
+    #         for docker_image_archive in built_docker_images:
+    #             if docker_image_archive.id < docker_archive.id:
+    #                 # rdb.set_trace()
+    #                 docker_image_archive.delete()
+
+    #         send_progress_message(f"finished building image : {docker_archive.created_by.id}:{docker_tag}", status="success")
+    #     except CalledProcessError as e:
+    #         remove_dataset_from_minio_and_database()
+    #         send_progress_message(f"build of image {docker_archive.created_by.id}:{docker_tag} failed \n Removing uploaded docker archive", status="failure")
+    #         # Handle the case where the command fails
+    #         # print('Command failed with return code:', e.returncode)
+    #         # print('Command output:', e.output.decode())
     
     # Push
     def push():
         send_progress_message(f"pushing image user_{docker_archive.created_by.id}:{docker_tag}", status="success")
+        
         try:
             # Run the command and capture both stdout and stderr
             command = f'docker push qtimchallenges.azurecr.io/user_{docker_archive.created_by.id}:{docker_tag}'
-            # rdb.set_trace()
             output = check_output(command.split(" "), stderr=STDOUT, universal_newlines=True)
-            # rdb.set_trace()
             send_progress_message(f"finished pushing image: {docker_archive.created_by.id}:{docker_tag}", status="success")
         except CalledProcessError as e:
             remove_dataset_from_minio_and_database()
-            send_progress_message(f"push of image {docker_archive.created_by.id}:{docker_tag} failed \n Removing uploaded docker archive", status="failure")
+            raise Exception(f"push of image {docker_archive.created_by.id}:{docker_tag} failed \n Removing uploaded docker archive")
             # Handle the case where the command fails
             # print('Command failed with return code:', e.returncode)
             # print('Command output:', e.output.decode())
@@ -873,21 +916,24 @@ def build_user_docker_image(dataset_id, user_id):
 
             send_progress_message(f"finished cleaning server", status="success")
         except CalledProcessError as e:
-            # rdb.set_trace()
             remove_dataset_from_minio_and_database()
-            send_progress_message(f"something went wrong cleaning the server", status="failure")
+            raise Exception(f"something went wrong cleaning the server")
             # Handle the case where the command fails
             # print('Command failed with return code:', e.returncode)
             # print('Command output:', e.output.decode())
     
     # Remove dataset upon error
     def remove_dataset_from_minio_and_database():
-        send_progress_message(f"removing docker corrupted image archive", status="progress")
         try:
             # Run the command and capture both stdout and stderr
             # rdb.set_trace()
-            docker_archive.delete()
-            send_progress_message(f"finished removing docker corrupted image archive", status="success")
+            built_docker_images = Data.objects.filter(type="docker_image", created_by_id=user_id, file_name=docker_archive.file_name)
+            for docker_image_archive in built_docker_images:
+                send_progress_message(f"removing docker corrupted image archive", status="progress")
+                # rdb.set_trace()
+                docker_image_archive.delete()
+            send_progress_message(f"finished removing docker corrupted image archive", status="progress")
+            # docker_archive.delete()
         except CalledProcessError as e:
             send_progress_message(f"something went wrong removing docker corrupted image archive", status="failure")
             # Handle the case where the command fails
@@ -927,6 +973,7 @@ def build_user_docker_image(dataset_id, user_id):
     
         # send_progress_message("Docker image build completed successfully.", status='success')
     except Exception as e:
+        # rdb.set_trace()
         logger.error(f"Error building Docker image: {str(e)}")
         send_progress_message(f"Error: {str(e)}", status='failure')
 
