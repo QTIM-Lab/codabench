@@ -25,7 +25,7 @@
                     </td>
                 </tr>
                 <!--  Orphan Datasets  -->
-                <tr>
+                <!--  <tr>
                     <td>Unused Datasets and Programs <span show="{unused_datasets_programs > 0}">(<b>{unused_datasets_programs}</b>)</span></td>
                     <td>
                     <button class="ui red right floated labeled icon button {disabled: unused_datasets_programs === 0}" onclick="{delete_unused_datasets}">
@@ -33,7 +33,7 @@
                         Delete unused datasets/programs
                     </button>
                     </td>
-                </tr>
+                </tr>  -->
                 <!--  Orphan Submissions  -->
                 <tr>
                     <td>Unused Submissions <span show="{unused_submissions > 0}">(<b>{unused_submissions}</b>)</span></td>

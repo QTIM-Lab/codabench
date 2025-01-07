@@ -63,7 +63,6 @@
             <th if="{ opts.admin }">Phase</th>
             <th>Date</th>
             <th>Status</th>
-            <th>Score</th>
             <th if="{ opts.competition.enable_detailed_results && opts.competition.show_detailed_results_in_submission_panel}">Detailed Results</th>
             <th class="center aligned {admin-action-column: opts.admin, action-column: !opts.admin}">Actions</th>
         </tr>
@@ -99,7 +98,8 @@
                     <i if="{submission.status === 'Submitting' && !submission.auto_run}" class="question circle icon"></i>
                 </sup>
             </td>
-            <td>{get_score(submission)}</td>
+            <!--  BB - XAI Challenge Test Phase - 10/14/2024  -->
+            <!--  <td>{get_score(submission)}</td>  -->
             <td if="{ opts.competition.enable_detailed_results && opts.competition.show_detailed_results_in_submission_panel }">
                 <a if="{submission.status === 'Finished'}" href="detailed_results/{submission.id}" target="_blank" class="eye-icon-link">
                     <i class="icon grey eye eye-icon"></i>

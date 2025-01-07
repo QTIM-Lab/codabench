@@ -338,7 +338,11 @@ class CompetitionViewSet(ModelViewSet):
     @action(detail=True, methods=('POST',))
     def register(self, request, pk):
         competition = self.get_object()
-        user = request.user
+        user = request.user        
+        if False: # BB
+            with open("/app/var/minio/public/xai/user_sharing_models.csv", 'a') as file:
+                file.write(f"{user.pk},{user.username},{1 if bool(request.data['share_model']) else 0}\n")
+
         try:
             participant = CompetitionParticipant.objects.create(competition=competition, user=user)
         except IntegrityError:

@@ -1,5 +1,4 @@
 import json, pdb
-from remote_pdb import RemotePdb
 import logging
 
 from channels.generic.websocket import AsyncWebsocketConsumer

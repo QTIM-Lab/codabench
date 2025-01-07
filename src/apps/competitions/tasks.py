@@ -203,6 +203,7 @@ def _send_to_compute_worker(submission, is_scoring):
         celery_app = app_or_default()
         with celery_app.connection() as new_connection:
             new_connection.virtual_host = str(submission.phase.competition.queue.vhost)
+            # rdb.set_trace()
             task = celery_app.send_task(
                 'compute_worker_run',
                 args=(run_args,),
@@ -320,6 +321,7 @@ def _run_submission(submission_pk, task_pks=None, is_scoring=False):
         if not submission.task:
             submission.task = tasks[0]
             submission.save()
+        # rdb.set_trace()
         _send_to_compute_worker(submission, is_scoring)
 
 

@@ -65,23 +65,30 @@
                     </select> 
                     
                 </div>
-                <!--  BB - Docker Submissions  -->
-                <div class="ui six wide field">
+                <!--  BB - Docker Submissions  Start -->
+                <!--  <div class="ui six wide field">
                    <label>Use Docker Image:
                    <span class="ui mini circular icon button"
-                       data-tooltip="You can either submit in default competition image"
+                       data-tooltip="Use default or upload your own docker image Dockerfile in *.zip format"
                        data-position="top center">
                        <i class="question icon"></i>
                    </span>
                    </label>
                    <select name="docker_images" id="docker_images_dropdown" class="ui dropdown">
-                       <!--  <option value="add_docker_image">+ Add New Docker Image</option>  -->
                        <option each="{docker_image in docker_images}" value="{docker_image.id}">{docker_image.name}</option>
                    </select>
+                </div>  -->
+                <!--  <input-file name="docker_image_data_file" ref="docker_image_data_file" error="{errors.docker_image_data_file}" accept=".zip" style="display: none;"></input-file>  -->
+                <!--  BB - Docker Submissions End  -->
+                <div class="ui six wide field">
+                    <label>Submission Archive:
+                    <span class="ui mini circular icon button"
+                        data-tooltip="Algorithm"
+                        data-position="top center">
+                        <i class="question icon"></i>
+                    </span>
+                    </label>
                 </div>
-                <input-file name="docker_image_data_file" ref="docker_image_data_file" error="{errors.docker_image_data_file}" accept=".zip" style="display: none;"></input-file>
-                <!--  BB - Docker Submissions  -->
-
                 <input-file name="data_file" ref="data_file" error="{errors.data_file}" accept=".zip"></input-file>
             </form>
         </div>
@@ -183,22 +190,23 @@
         self.children_statuses = {}
         self.datasets = {}
         self.organizations = []
-        self.docker_images = [{'id': 'codalab-legacy:py37', 'name': 'codalab-legacy:py37'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
-        var get_user_docker_images = function (){
-            CODALAB.api.get_user_docker_images()
-                .done((data) => {
-                    self.docker_images = [{'id': 'codalab-legacy:py37', 'name': 'codalab-legacy:py37'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
-                    for (let i=0; i<data['built_docker_image_file_names'].length ; i++){
-                        tag_name = data['built_docker_image_file_names'][i]
-                        self.docker_images.push({'id': `user_${data['user_pk']}:${tag_name}`, 'name': `${tag_name}`})
-                    }
-                    self.organizations = data
-                    if (self.organizations.length === 0){
-                        $('#organization_dropdown').hide()
-                    }
-                    self.update()
-                })
-        }
+        // BB - docker submissions -get user docker images
+        // self.docker_images = [{'id': 'xai-challenge:demo-score', 'name': 'xai-challenge:demo-score'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
+        // var get_user_docker_images = function (){
+        //     CODALAB.api.get_user_docker_images()
+        //         .done((data) => {
+        //             self.docker_images = [{'id': 'xai-challenge:demo-score', 'name': 'xai-challenge:demo-score'},{'id': 'add_docker_image', 'name': '+ Add New Docker Image'}]
+        //             for (let i=0; i<data['built_docker_image_file_names'].length ; i++){
+        //                 tag_name = data['built_docker_image_file_names'][i]
+        //                 self.docker_images.push({'id': `user_${data['user_pk']}:${tag_name}`, 'name': `${tag_name}`})
+        //             }
+        //             self.organizations = data
+        //             if (self.organizations.length === 0){
+        //                 $('#organization_dropdown').hide()
+        //             }
+        //             self.update()
+        //         })
+        // }
         self.one('mount', function () {
             CODALAB.api.get_user_participant_organizations()
                 .done((data) => {
@@ -208,7 +216,7 @@
                     }
                     self.update()
                 })
-            get_user_docker_images() // BB
+            // get_user_docker_images() // BB
             $('.dropdown', self.root).dropdown()
             let segment = $('.submission-output-container .ui.basic.segment')
             $('.ui.accordion', self.root).accordion({
@@ -219,7 +227,8 @@
             // File upload handler
             $(self.refs.data_file.refs.file_input).on('change', self.check_can_upload)
             // File upload handler for docker image upload
-            $(self.refs.docker_image_data_file.refs.file_input).on('change', self.upload_docker_image_archive)
+            // BB uncomment to activate event listener
+            // $(self.refs.docker_image_data_file.refs.file_input).on('change', self.upload_docker_image_archive)
             self.setup_autoscroll()
             self.setup_submission_websocket()
             self.setup_docker_image_websocket()
@@ -241,7 +250,8 @@
             if(selected_option_value == 'add_docker_image'){
                 toastr.success('Adding Docker Image')
                 // Open Add organization in new tab
-                $(self.refs.docker_image_data_file.refs.file_input).click()
+                // BB
+                // $(self.refs.docker_image_data_file.refs.file_input).click()
                 // self.upload_docker_image_archive()
             }else{
                 toastr.success(`Selected Docker Image ${selected_option_value}`)
@@ -412,7 +422,17 @@
                 get_user_docker_images() //BB
                 toastr.warning(message.message);
             } else if (message.status === 'failure') {
-                toastr.error(message.message);
+                
+                if (message.message.search('final logs for attempt at building image') != -1){
+                    toastr.error(message.message,
+                                 'Docker Image Build Logs',
+                                 { timeOut: 50000 ,
+                                   toastClass: 'custom-toast-width'
+                                 }); // 10 seconds
+                    // alert(message.message)
+                } else{
+                    toastr.error(message.message);
+                }
             } else {
                 console.log("Unknown status:", message.status);
             }
@@ -632,13 +652,14 @@
                         if(!answer['name'].startsWith('task-') && answer['name'].startsWith('docker_images')){
                             submission_docker_image = answer['value']
                         }
-                    }    
+                    }
+                    // debugger
                     CODALAB.api.create_submission({
                         "data": data.key,
                         "phase": self.selected_phase.id,
                         "fact_sheet_answers": self.get_fact_sheet_answers(),
                         "tasks": task_ids_to_run,
-                        "docker_image": submission_docker_image,
+                        "docker_image": submission_docker_image === null ? self.opts.competition.docker_image : submission_docker_image === null,
                         "organization": organization,
                         "queue": self.opts.competition.queue ? self.opts.competition.queue.id : null
                     })
@@ -778,6 +799,10 @@
         .graph-container
             display block
             height 250px
+
+        .custom-toast-width {
+            width: 1000px;
+        }
 
     </style>
 </submission-upload>

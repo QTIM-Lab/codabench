@@ -57,9 +57,11 @@
                         <div class="submission-modal item" data-tab="{admin_: submission.admin}p_stderr">
                             stderr
                         </div>
+                        <!--  BB - Block Ingestion Logs - comment out below -->
                         <div class="submission-modal item" data-tab="{admin_: submission.admin}p_ingest_stdout">
                             Ingestion stdout
                         </div>
+                        <!--  BB - Block Ingestion Logs - comment out below -->
                         <div class="submission-modal item" data-tab="{admin_: submission.admin}p_ingest_stderr">
                             Ingestion stderr
                         </div>
@@ -98,9 +100,11 @@
                         <div class="submission-modal item" data-tab="{admin_: submission.admin}s_stderr">
                             stderr
                         </div>
+                        <!--  BB - to block ingestion output - comment below code  -->
                         <div class="submission-modal item" data-tab="{admin_: submission.admin}s_ingest_stdout">
                             Ingestion stdout
                         </div>
+                        <!--  BB - to block ingestion output - comment below code  -->
                         <div class="submission-modal item" data-tab="{admin_: submission.admin}s_ingest_stderr">
                             Ingestion stderr
                         </div>

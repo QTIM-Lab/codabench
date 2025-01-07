@@ -106,6 +106,7 @@ class ExecutionTimeLimitExceeded(Exception):
 # -----------------------------------------------------------------------------
 @task(name="compute_worker_run")
 def run_wrapper(run_args):
+    # rdb.set_trace()
     logger.info(f"Received run arguments: {run_args}")
     run = Run(run_args)
 
@@ -641,6 +642,7 @@ class Run:
             # Don't allow subprocesses to raise privileges
             '--security-opt=no-new-privileges',
 
+            '--network', 'none',
             # Set the volumes
             '-v', f'{self._get_host_path(program_dir)}:/app/program',
             '-v', f'{self._get_host_path(self.output_dir)}:/app/output',

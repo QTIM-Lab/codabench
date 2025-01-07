@@ -29,6 +29,12 @@
                 </div>
             </div>
             <div class="row">
+                <div class="ui checkbox">
+                    <input type="checkbox" id="share-model" onclick="{share_toggle}">
+                    <label for="share-model">We accept the Challenge terms and our team agrees that our submission(s) and trained model(s) may be made public by MIDRC (in the MIDRC GitHub and future journal publications) at the conclusion of the Challenge. Not selecting this option will remove your team from prize eligibility.</label>
+                </div>
+            </div>
+            <div class="row">
                 <button class="ui primary button {disabled: !accepted}" onclick="{submit_registration}">
                     Register
                 </button>
@@ -71,6 +77,7 @@
         let self = this
         self.on('mount', () => {
             self.accepted = false
+            self.share_model = false // BB
         })
 
         CODALAB.events.on('competition_loaded', (competition) => {
@@ -89,7 +96,14 @@
 
         self.accept_toggle = () => {
             self.accepted = !self.accepted
+            // BB
+            // alert("Don't forget to review the second checkbox regarding model sharing!")
+            // toastr.warning("Don't forget to review the second checkbox regarding model sharing!")
         }
+        // BB
+        // self.share_toggle = () => {
+        //     self.share_model = !self.share_model
+        // }
 
         self.show_modal = (e) => {
             if (e) {
@@ -104,8 +118,11 @@
             const url = new URL(window.location.href)
             const searchParams = new URLSearchParams(url.search)
             const secretKey = searchParams.get('secret_key')
-
-            CODALAB.api.submit_competition_registration(self.competition_id, secretKey)
+            // BB
+            // original
+            // CODALAB.api.submit_competition_registration(self.competition_id, secretKey)
+            // new
+            CODALAB.api.submit_competition_registration(self.competition_id, secretKey, self.share_model)
                 .done(response => {
                     self.status = response.participant_status
                     if (self.status === 'approved') {
