@@ -347,8 +347,8 @@ class CompetitionDetailSerializer(serializers.ModelSerializer):
     leaderboards = serializers.SerializerMethodField()
     collaborators = CollaboratorSerializer(many=True)
     participant_status = serializers.CharField(read_only=True)
-    participant_count = serializers.IntegerField(read_only=True)
-    submission_count = serializers.IntegerField(read_only=True)
+    participants_count = serializers.IntegerField(read_only=True)
+    submissions_count = serializers.IntegerField(read_only=True)
     queue = QueueSerializer(read_only=True)
     whitelist_emails = serializers.SerializerMethodField()
 
@@ -372,8 +372,8 @@ class CompetitionDetailSerializer(serializers.ModelSerializer):
             'participant_status',
             'registration_auto_approve',
             'description',
-            'participant_count',
-            'submission_count',
+            'participants_count',
+            'submissions_count',
             'queue',
             'enable_detailed_results',
             'show_detailed_results_in_submission_panel',
@@ -412,11 +412,25 @@ class CompetitionDetailSerializer(serializers.ModelSerializer):
         # Get the user's display name if not None, otherwise return username
         return obj.created_by.display_name if obj.created_by.display_name else obj.created_by.username
 
+    def to_representation(self, instance):
+        """
+        This is a built-in function where we can choose which fields to include in the serializer's output
+        """
+        representation = super().to_representation(instance)
+        user = self.context['request'].user
+
+        # If user is not admin/creator/collaborator then do not include secret_key and whitelist_emails
+        if not instance.user_has_admin_permission(user):
+            representation.pop('secret_key', None)
+            representation.pop('whitelist_emails', None)
+
+        return representation
+
 
 class CompetitionSerializerSimple(serializers.ModelSerializer):
     created_by = serializers.CharField(source='created_by.username', read_only=True)
     owner_display_name = serializers.SerializerMethodField()
-    participant_count = serializers.IntegerField(read_only=True)
+    participants_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Competition
@@ -427,7 +441,7 @@ class CompetitionSerializerSimple(serializers.ModelSerializer):
             'owner_display_name',
             'created_when',
             'published',
-            'participant_count',
+            'participants_count',
             'logo',
             'logo_icon',
             'description',

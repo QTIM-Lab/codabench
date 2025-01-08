@@ -2,8 +2,7 @@
 This file contains utilities for competitions
 '''
 import random
-
-from django.db.models import Count
+# from django.db.models import Count
 
 from competitions.models import Competition
 
@@ -16,9 +15,9 @@ def get_popular_competitions(limit=4):
     :rtype: list
     :return:  Most popular competitions.
     '''
+
     competitions = Competition.objects.filter(published=True) \
-        .annotate(participant_count=Count('participants')) \
-        .order_by('-participant_count')
+        .order_by('-participants_count')
 
     if len(competitions) <= limit:
         return competitions
@@ -26,21 +25,16 @@ def get_popular_competitions(limit=4):
     return competitions[:limit]
 
 
-def get_featured_competitions(limit=4, excluded_competitions=None):
+def get_featured_competitions(limit=4):
     '''
-    Function to return featured competitions if they are still open.
+    Function to return featured competitions
 
-    :param limit: Amount of competitions to return. Default is 3
-    :param excluded_competitions: list of popular competitions to prevent displaying duplicates
+    :param limit: Amount of competitions to return. Default is 4
     :rtype: list
     :return: list of featured competitions
     '''
 
-    competitions = Competition.objects.filter(published=True) \
-        .annotate(participant_count=Count('participants'))
-
-    if excluded_competitions:
-        competitions = competitions.exclude(pk__in=[c.pk for c in excluded_competitions])
+    competitions = Competition.objects.filter(is_featured=True)
 
     if len(competitions) <= limit:
         return competitions
