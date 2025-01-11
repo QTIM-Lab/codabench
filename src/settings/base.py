@@ -211,6 +211,8 @@ CELERY_BROKER_USE_SSL = os.environ.get('BROKER_USE_SSL', False)
 CELERY_BROKER_URL = os.environ.get('BROKER_URL')
 if not CELERY_BROKER_URL:
     CELERY_BROKER_URL = f'pyamqp://{RABBITMQ_DEFAULT_USER}:{RABBITMQ_DEFAULT_PASS}@{RABBITMQ_HOST}:{RABBITMQ_PORT}//'
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://redis:6379")
+CELERY_IGNORE_RESULT = False      # Ensure that Celery tracks the state
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ('json',)
 CELERY_BEAT_SCHEDULE = {
@@ -229,6 +231,10 @@ CELERY_BEAT_SCHEDULE = {
     'create_storage_analytics_snapshot': {
         'task': 'analytics.tasks.create_storage_analytics_snapshot',
         'schedule': crontab(hour='2', minute='0', day_of_week='sun')  # Every Sunday at 02:00 UTC time
+    },
+    'update_home_page_counters': {
+        'task': 'analytics.tasks.update_home_page_counters',
+        'schedule': timedelta(days=1),  # Run every 24 hours
     },
     'reset_computed_storage_analytics': {
         'task': 'analytics.tasks.reset_computed_storage_analytics',

@@ -41,7 +41,32 @@
             
         </tr>
         </thead>
-        <tbody>
+        <!--  Show when particpant is not registered  -->
+        <tbody if="{participant_status === null}">
+            <tr class="center aligned ui yellow message">
+                <td colspan="100%">
+                    <em>You are not a participant of this competition. Please register in My Submissions tab to view the leaderboard.</em>
+                </td>
+            </tr>
+        </tbody>
+        <!--  Show when particpant registration is pending  -->
+        <tbody if="{participant_status === 'pending'}">
+            <tr class="center aligned ui yellow message">
+                <td colspan="100%">
+                    <em>Your request to participate in this competition is waiting for an approval from the competition organizer.</em>
+                </td>
+            </tr>
+        </tbody>
+        <!--  Show when particpant registration is denied  -->
+        <tbody if="{participant_status === 'denied'}">
+            <tr class="center aligned ui red message">
+                <td colspan="100%">
+                    <em>Your request to participate in this competition is denied. Please contact the competition organizer for more details.</em>
+                </td>
+            </tr>
+        </tbody>
+        <!--  Show when particpant registration is approved  -->
+        <tbody if="{participant_status === 'approved'}">
         <tr if="{_.isEmpty(selected_leaderboard.submissions)}" class="center aligned">
             <td colspan="100%">
                 <em>No submissions have been added to this leaderboard yet!</em>
@@ -59,7 +84,7 @@
             <td if="{submission.organization === null}"><a href="{submission.slug_url}">{ submission.owner }</a></td>
             <td if="{submission.organization !== null}"><a href="{submission.organization.url}">{ submission.organization.name }</a></td>
             <td>{submission.num_entries}</td>
-            <td>{submission.created_when}</td>
+            <td>{ pretty_date(submission.created_when) }</td>
             <td>{submission.id}</td>
             <td each="{ column in filtered_columns }">
                 <a if="{column.title == 'Detailed Results'}" href="detailed_results/{get_detailed_result_submisison_id(column, submission)}" target="_blank" class="eye-icon-link">
@@ -70,6 +95,7 @@
         </tr>
         </tbody>
     </table>
+
 
     <script>
         let self = this
@@ -82,6 +108,13 @@
         self.enable_detailed_results = false
         self.show_detailed_results_in_leaderboard = false
 
+        self.pretty_date = function (date_string) {
+            if (!!date_string) {
+                return luxon.DateTime.fromISO(date_string).toFormat('yyyy-MM-dd HH:mm')
+            } else {
+                return ''
+            }
+        }
        
         self.bold_class = function(column, submission){
             // Return `text-bold` if submission has 
@@ -201,6 +234,7 @@
 
         CODALAB.events.on('competition_loaded', (competition) => {
             self.competition_id = competition.id
+            self.participant_status = competition.participant_status
             self.opts.is_admin ? self.show_download = "visible": self.show_download = "hidden"
             self.enable_detailed_results = competition.enable_detailed_results
             self.show_detailed_results_in_leaderboard = competition.show_detailed_results_in_leaderboard

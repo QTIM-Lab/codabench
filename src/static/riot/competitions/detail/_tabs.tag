@@ -33,7 +33,7 @@
                                  data-tab="_tab_page_term">
                                 Terms
                             </div>
-                            <div  if={competition.files.length != 0} class="{active: _.get(competition.pages, 'length') === 0} item" data-tab="files">
+                            <div  if={competition.files && competition.files.length != 0} class="{active: _.get(competition.pages, 'length') === 0} item" data-tab="files">
                                 Files
                             </div>
                         </div>
@@ -412,7 +412,7 @@
         })
 
         self.pretty_date = function (date_string) {
-            if (!!date_string) {
+            if (date_string != null) {
                 return luxon.DateTime.fromISO(date_string).toLocaleString(luxon.DateTime.DATETIME_FULL)
             } else {
                 return ''

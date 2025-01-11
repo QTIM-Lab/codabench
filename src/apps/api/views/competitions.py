@@ -6,7 +6,7 @@ from io import StringIO
 from django.http import HttpResponse
 from tempfile import SpooledTemporaryFile
 from django.db import IntegrityError
-from django.db.models import Subquery, OuterRef, Count, Q, F, Case, When
+from django.db.models import Subquery, OuterRef, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema, no_body
 from rest_framework import status
@@ -34,7 +34,6 @@ from competitions.utils import get_popular_competitions, get_featured_competitio
 from leaderboards.models import Leaderboard
 from utils.data import make_url_sassy
 from api.permissions import IsOrganizerOrCollaborator
-from datetime import datetime
 from django.db import transaction
 from django.conf import settings
 
@@ -168,13 +167,13 @@ class CompetitionViewSet(ModelViewSet):
                     'phases__leaderboard__columns',
                     'collaborators',
                 )
-                qs = qs.annotate(participant_count=Count(F('participants'), distinct=True))
-                qs = qs.annotate(submission_count=Count(
-                    # Filtering out children submissions so we only count distinct submissions
-                    Case(
-                        When(phases__submissions__parent__isnull=True, then='phases__submissions__pk')
-                    ), distinct=True)
-                )
+                # qs = qs.annotate(participant_count=Count(F('participants'), distinct=True))
+                # qs = qs.annotate(submission_count=Count(
+                #     # Filtering out children submissions so we only count distinct submissions
+                #     Case(
+                #         When(phases__submissions__parent__isnull=True, then='phases__submissions__pk')
+                #     ), distinct=True)
+                # )
 
         # search_query is true when called from searchbar
         if search_query:
@@ -220,7 +219,7 @@ class CompetitionViewSet(ModelViewSet):
         data = request.data
         if 'leaderboards' in data:
             leaderboard_data = data['leaderboards'][0]
-            if(leaderboard_data['id']):
+            if leaderboard_data['id']:
                 leaderboard_instance = Leaderboard.objects.get(id=leaderboard_data['id'])
                 leaderboard = LeaderboardSerializer(leaderboard_instance, data=data['leaderboards'][0])
             else:
@@ -271,8 +270,8 @@ class CompetitionViewSet(ModelViewSet):
                         new_phase_obj = Phase.objects.create(
                             status=phase["status"],
                             index=phase["index"],
-                            start=datetime.strptime(phase['start'], "%B %d, %Y"),
-                            end=datetime.strptime(phase['end'], "%B %d, %Y") if phase['end'] else None,
+                            start=phase['start'],
+                            end=phase['end'] if phase['end'] else None,
                             name=phase["name"],
                             description=phase["description"],
                             hide_output=phase["hide_output"],
@@ -512,7 +511,7 @@ class CompetitionViewSet(ModelViewSet):
     @action(detail=False, methods=('GET',), permission_classes=(AllowAny,))
     def front_page(self, request):
         popular_comps = get_popular_competitions()
-        featured_comps = get_featured_competitions(excluded_competitions=popular_comps)
+        featured_comps = get_featured_competitions()
         popular_comps_serializer = CompetitionSerializerSimple(popular_comps, many=True)
         featured_comps_serializer = CompetitionSerializerSimple(featured_comps, many=True)
         return Response(data={
@@ -542,7 +541,6 @@ class CompetitionViewSet(ModelViewSet):
         qs = Competition.objects.filter(published=True)
         qs = qs.order_by('-id')
         queryset = self.filter_queryset(qs)
-
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -710,15 +708,16 @@ class PhaseViewSet(ModelViewSet):
             # - child submissions (submissions who has a parent i.e. parent field is not null)
             # - Failed submissions
             # - Cancelled submissions
-            num_entries = Submission.objects.filter(
-                Q(owner__username=submission['owner']) |
-                Q(parent__owner__username=submission['owner']),
-                phase=phase,
-            ).exclude(
-                Q(status=Submission.FAILED) |
-                Q(status=Submission.CANCELLED) |
-                Q(parent__isnull=False)
-            ).count()
+            num_entries = 1  # TMP, remove counting
+            # num_entries = Submission.objects.filter(
+            #     Q(owner__username=submission['owner']) |
+            #     Q(parent__owner__username=submission['owner']),
+            #     phase=phase,
+            # ).exclude(
+            #     Q(status=Submission.FAILED) |
+            #     Q(status=Submission.CANCELLED) |
+            #     Q(parent__isnull=False)
+            # ).count()
 
             submission_key = f"{submission['owner']}{submission['parent'] or submission['id']}"
 
